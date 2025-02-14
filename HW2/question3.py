@@ -28,6 +28,7 @@ def train_age_regressor():
 
 #hw2 version
 
+#creating a validation data set
 def split_data(X, y, validation_ratio):
     m = X.shape[0]
     validation_size = int(m * validation_ratio)
@@ -41,9 +42,8 @@ def split_data(X, y, validation_ratio):
     return X_train, y_train, X_val, y_val
 
 
-# noinspection SpellCheckingInspection
 class LinearRegressionSDG:
-    def __init__(self, learning_rate=0.01, epochs=1000, batch_size=32, regularization_strength=0.1):
+    def __init__(self, learning_rate, epochs, batch_size, regularization_strength):
         self.learning_rate = learning_rate
         self.epochs = epochs
         self.batch_size = batch_size  # (mini) batch
@@ -84,11 +84,11 @@ class LinearRegressionSDG:
                 self.w -= self.learning_rate * gradient_weights
                 self.b -= self.learning_rate * gradient_bias
 
-                #report status
-                if epoch % 100 == 0:
-                    y_pred = self.predict(X)
-                    loss = self.mean_squared_error(y, y_pred)
-                    print(f"Epoch {epoch}: Loss {loss}")
+            #report status
+            if epoch % 100 == 0:
+                y_pred = self.predict(X)
+                loss = self.mean_squared_error(y, y_pred)
+                print(f"Epoch {epoch}: Loss {loss}")
 
 
     def predict(self, X):
@@ -100,7 +100,7 @@ class LinearRegressionSDG:
 
     def compute_cost(self, X, y):
         y_pred = self.predict(X)
-        mse = self.mean_squared_error(self, y, y_pred)
+        mse = self.mean_squared_error(y, y_pred)
         l2_penalty = (self.regularization_strength / 2) * np.sum(self.w ** 2)  #regularize only w, not b
         return mse + l2_penalty
 
@@ -116,9 +116,11 @@ def grid_search(X_train, y_train, X_val, y_val, learning_rates, epochs_list, bat
                 for reg_strength in reg_strengths:
                     print(f"Training with lr={lr}, epochs={epochs}, batch_size={batch_size}, reg_strength={reg_strength}")
 
+                    #train model with these hyperparameters on training data set
                     model = LinearRegressionSDG(learning_rate=lr, epochs=epochs, batch_size=batch_size, regularization_strength=reg_strength)
                     model.fit(X_train, y_train)
 
+                    #test hyperparameters on validation data set
                     val_cost = model.compute_cost(X_val, y_val)
                     print(f"Validation cost: {val_cost}")
 
@@ -141,24 +143,26 @@ def train_problem3():
     #load data
     X_tr = np.reshape(np.load("age_regression_Xtr.npy"), (-1, 48 * 48))
     y_tr = np.load("age_regression_ytr.npy")
-    X_te = np.reshape(np.load("age_regression_Xte.npy"), (-1, 48 * 48))
-    y_te = np.load("age_regression_yte.npy")
+    X_test = np.reshape(np.load("age_regression_Xte.npy"), (-1, 48 * 48))
+    y_test = np.load("age_regression_yte.npy")
 
     #split training data into training and validation sets
     X_train, y_train, X_val, y_val = split_data(X_tr, y_tr, 0.2)
 
     #pick possible hyperparameters
-    learning_rates = [0.001, 0.01, 0.1, 1]
-    epochs_list = [500, 1000, 2000, 5000]
-    batch_sizes = [16, 32, 64, 128]
+    learning_rates = [0.001, 0.0001, 0.00001, 0.000001]
+    epochs_list = [25, 50, 100, 200]
+    batch_sizes = [5, 10, 20, 40]
     reg_strengths = [0.01, 0.1, 1, 10]
 
     #grid search over hyperparameters
-    grid_search(X_train, y_train, X_val, y_val, learning_rates, epochs_list, batch_sizes, reg_strengths)
+    best_model, best_params = grid_search(X_train, y_train, X_val, y_val, learning_rates, epochs_list, batch_sizes, reg_strengths)
 
     #evaluate on test set
+    val_cost = best_model.compute_cost(X_test, y_test)
 
     #report performance
+    print(val_cost)
 
 
 train_problem3()
