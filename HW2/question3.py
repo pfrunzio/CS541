@@ -41,11 +41,12 @@ def split_data(X, y, validation_ratio):
     return X_train, y_train, X_val, y_val
 
 
+# noinspection SpellCheckingInspection
 class LinearRegressionSDG:
-    def __init__(self, batch_size=32, learning_rate=0.01, epochs=1000, regularization_strength=0.1):
-        self.batch_size = batch_size
+    def __init__(self, learning_rate=0.01, epochs=1000, batch_size=32, regularization_strength=0.1):
         self.learning_rate = learning_rate
         self.epochs = epochs
+        self.batch_size = batch_size  # (mini) batch
         self.regularization_strength = regularization_strength
 
         self.w = None   #weight vector
@@ -54,37 +55,68 @@ class LinearRegressionSDG:
     #finish filling out the model
 
     def fit(self, X, y):
-        m, n = X.shape
+        n_samples, n_features = X.shape
         #initialize weights and biases
+        self.w = np.random.randn(n_features)
+        self.b = np.random.randn()
 
-        #implement SDG
+        # implement SDG
+
+        #for each epoch
         for epoch in range(self.epochs):
+            # randomize the order of examples in the training set
+            indices = np.random.permutation(n_samples)
+            X_shuffled = X[indices]
+            y_shuffled = y[indices]
 
-            for i in range(0, m, self.batch_size):
+            for i in range(0, n_samples, self.batch_size):
+                #select a mini batch
+                X_batch = X_shuffled[i:i + self.batch_size]
+                y_batch = y_shuffled[i:i + self.batch_size]
 
-                #compute gradients
+                #estimate the gradient on the mini batch
+                y_pred = self.predict(X_batch)
+                error = y_pred - y_batch
+                gradient_weights = np.dot(X_batch.T, error) / X_batch.shape[0]
+                gradient_bias = np.mean(error)
 
                 #update weights and biases
+                self.w -= self.learning_rate * gradient_weights
+                self.b -= self.learning_rate * gradient_bias
+
+                #report status
+                if epoch % 100 == 0:
+                    y_pred = self.predict(X)
+                    loss = self.mean_squared_error(y, y_pred)
+                    print(f"Epoch {epoch}: Loss {loss}")
+
 
     def predict(self, X):
         #x.T * w + b
         return np.dot(X, self.w) + self.b
 
-    # def compute_cost(self, X, y):
+    def mean_squared_error(self, y_true, y_pred):
+        return np.mean((y_true - y_pred) ** 2)
+
+    def compute_cost(self, X, y):
+        y_pred = self.predict(X)
+        mse = self.mean_squared_error(self, y, y_pred)
+        l2_penalty = (self.regularization_strength / 2) * np.sum(self.w ** 2)  #regularize only w, not b
+        return mse + l2_penalty
 
 
-def grid_search(X_train, y_train, X_val, y_val, batch_sizes, learning_rates, epochs_list, reg_strengths):
+def grid_search(X_train, y_train, X_val, y_val, learning_rates, epochs_list, batch_sizes, reg_strengths):
     best_model = None
     best_cost = float('inf')
     best_params = {}
 
-    for batch_size in batch_sizes:
-        for lr in learning_rates:
-            for epochs in epochs_list:
+    for lr in learning_rates:
+        for epochs in epochs_list:
+            for batch_size in batch_sizes:
                 for reg_strength in reg_strengths:
-                    print(f"Training with batch_size={batch_size}, lr={lr}, epochs={epochs}, reg_strength={reg_strength}")
+                    print(f"Training with lr={lr}, epochs={epochs}, batch_size={batch_size}, reg_strength={reg_strength}")
 
-                    model = LinearRegressionSDG(batch_size=batch_size, learning_rate=lr, epochs=epochs, regularization_strength=reg_strength)
+                    model = LinearRegressionSDG(learning_rate=lr, epochs=epochs, batch_size=batch_size, regularization_strength=reg_strength)
                     model.fit(X_train, y_train)
 
                     val_cost = model.compute_cost(X_val, y_val)
@@ -95,9 +127,9 @@ def grid_search(X_train, y_train, X_val, y_val, batch_sizes, learning_rates, epo
                         best_cost = val_cost
                         best_model = model
                         best_params = {
-                            'batch_size': batch_size,
                             'learning_rate': lr,
                             'epochs': epochs,
+                            'batch_size': batch_size,
                             'regularization_strength': reg_strength
                         }
 
@@ -116,17 +148,17 @@ def train_problem3():
     X_train, y_train, X_val, y_val = split_data(X_tr, y_tr, 0.2)
 
     #pick possible hyperparameters
-    batch_sizes = [16, 32, 64, 128]
     learning_rates = [0.001, 0.01, 0.1, 1]
     epochs_list = [500, 1000, 2000, 5000]
+    batch_sizes = [16, 32, 64, 128]
     reg_strengths = [0.01, 0.1, 1, 10]
 
     #grid search over hyperparameters
-    grid_search(X_train, y_train, X_val, y_val, batch_sizes, learning_rates, epochs_list, reg_strengths)
+    grid_search(X_train, y_train, X_val, y_val, learning_rates, epochs_list, batch_sizes, reg_strengths)
 
     #evaluate on test set
 
     #report performance
 
 
-
+train_problem3()
