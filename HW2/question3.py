@@ -52,8 +52,6 @@ class LinearRegressionSDG:
         self.w = None   #weight vector
         self.b = None   #bias term
 
-    #finish filling out the model
-
     def fit(self, X, y):
         n_samples, n_features = X.shape
         #initialize weights and biases
@@ -77,18 +75,23 @@ class LinearRegressionSDG:
                 #estimate the gradient on the mini batch
                 y_pred = self.predict(X_batch)
                 error = y_pred - y_batch
-                gradient_weights = np.dot(X_batch.T, error) / X_batch.shape[0]
-                gradient_bias = np.mean(error)
+                #weight gradient
+                dw = (2 / self.batch_size) * np.dot(X_batch.T, error)
+                #L2 regularization for dw gradient
+                l2 = 2 * self.regularization_strength * self.w
+                dw += l2
+                #bias gradient with no regularization
+                db = (2 / self.batch_size) * np.sum(error)
 
                 #update weights and biases
-                self.w -= self.learning_rate * gradient_weights
-                self.b -= self.learning_rate * gradient_bias
+                self.w -= self.learning_rate * dw
+                self.b -= self.learning_rate * db
 
             #report status
-            if epoch % 100 == 0:
+            if epoch % 25 == 0:
                 y_pred = self.predict(X)
-                loss = self.mean_squared_error(y, y_pred)
-                print(f"Epoch {epoch}: Loss {loss}")
+                mse = self.mean_squared_error(y, y_pred)
+                print(f"Epoch {epoch}: Loss (no regularization) {mse}")
 
 
     def predict(self, X):
@@ -101,8 +104,13 @@ class LinearRegressionSDG:
     def compute_cost(self, X, y):
         y_pred = self.predict(X)
         mse = self.mean_squared_error(y, y_pred)
-        l2_penalty = (self.regularization_strength / 2) * np.sum(self.w ** 2)  #regularize only w, not b
-        return mse + l2_penalty
+        l2 = (self.regularization_strength / 2) * np.sum(self.w ** 2)  #regularize only w, not b
+        return mse + l2
+
+    def unreg_compute_cost(self, X, y):
+        y_pred = self.predict(X)
+        mse = self.mean_squared_error(y, y_pred)
+        return mse
 
 
 def grid_search(X_train, y_train, X_val, y_val, learning_rates, epochs_list, batch_sizes, reg_strengths):
@@ -135,7 +143,7 @@ def grid_search(X_train, y_train, X_val, y_val, learning_rates, epochs_list, bat
                             'regularization_strength': reg_strength
                         }
 
-    print("\nBest Hyperparameters Found:")
+    print("\nBest hyperparameters found:")
     print(best_params)
     return best_model, best_params
 
@@ -151,18 +159,18 @@ def train_problem3():
 
     #pick possible hyperparameters
     learning_rates = [0.001, 0.0001, 0.00001, 0.000001]
-    epochs_list = [25, 50, 100, 200]
-    batch_sizes = [5, 10, 20, 40]
+    epochs_list = [25, 50, 100, 150]
+    batch_sizes = [5, 10, 20, 30]
     reg_strengths = [0.01, 0.1, 1, 10]
 
     #grid search over hyperparameters
     best_model, best_params = grid_search(X_train, y_train, X_val, y_val, learning_rates, epochs_list, batch_sizes, reg_strengths)
 
     #evaluate on test set
-    val_cost = best_model.compute_cost(X_test, y_test)
+    val_cost = best_model.unreg_compute_cost(X_test, y_test)
 
     #report performance
-    print(val_cost)
+    print(f"Performance in un-regularized MSE: {val_cost}")
 
 
 train_problem3()
